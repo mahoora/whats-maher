@@ -30,7 +30,21 @@ jobs:
           name: analyze-output
           path: analyze_output.txt
           if-no-files-found: warn
-      - run: flutter build web --release
+      - name: Test minimal web build
+        run: |
+          cd /tmp
+          flutter create --project-name=testweb --platforms=web testweb 2>&1 | tail -5
+          cd testweb
+          flutter build web --release 2>&1 | tail -20
+        continue-on-error: true
+      - name: Build our project (capture errors)
+        run: flutter build web --release > build_errors.txt 2>&1 || true
+      - name: Upload build errors
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-errors
+          path: build_errors.txt
+          if-no-files-found: warn
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
