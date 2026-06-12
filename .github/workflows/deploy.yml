@@ -19,32 +19,16 @@ jobs:
           flutter-version: 3.44.2
           channel: stable
       - run: flutter pub get
-      - name: Create simple test
-        run: | 
-          mkdir -p /tmp/testweb
-          cd /tmp/testweb
-          echo 'void main() { print("hello"); }' > main.dart
-          dart compile js main.dart -o main.js 2>&1 || echo "dart2js failed"
-      - name: Analyze
-        id: analyze
-        run: |
-          flutter analyze > analyze_output.txt 2>&1 || true
-          cat analyze_output.txt
-      - name: Build web
-        run: |
-          flutter build web --release 2>&1 | tee build_output.txt
-      - name: Show last 80 lines of build output
-        if: failure()
-        run: tail -80 build_output.txt || echo "No build output"
+      - run: flutter config --enable-web
+      - run: flutter analyze
+      - run: flutter build web --release --base-href /whatsapp-clone/
       - name: Upload Pages artifact
-        if: success()
         uses: actions/upload-pages-artifact@v3
         with:
           path: build/web
 
   deploy:
     needs: build
-    if: success()
     runs-on: ubuntu-latest
     environment:
       name: github-pages
