@@ -32,9 +32,10 @@ jobs:
           echo "=== index.html size ===" && wc -c build/web/index.html 2>&1 || echo "index.html NOT FOUND"
           echo "=== All index.html ===" && find . -name "index.html" -type f 2>/dev/null
           echo "=== Files in build/web ===" && find build/web -type f 2>/dev/null | head -20
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: github-pages
           path: build/web
 
   deploy:
