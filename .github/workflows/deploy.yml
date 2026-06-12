@@ -23,7 +23,7 @@ jobs:
       - run: flutter doctor -v
       - run: flutter config --enable-web
       - name: Capture analyze errors
-        run: flutter analyze 2>&1 > analyze_output.txt; exit 0
+        run: flutter analyze > analyze_output.txt 2>&1 || true
       - name: Upload analyze output
         uses: actions/upload-artifact@v4
         with:
