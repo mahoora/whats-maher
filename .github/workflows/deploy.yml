@@ -25,7 +25,7 @@ jobs:
       - name: Check build output
         run: pwd; ls -la build/ 2>&1 || echo "build/ not found"; find . -name "index.html" -type f 2>/dev/null | head -10
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: build/web
 
