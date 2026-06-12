@@ -9,16 +9,9 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -27,14 +20,23 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: flutter config --enable-web
-      - run: flutter analyze > analyze_output.txt 2>&1 || true; cat analyze_output.txt
-      - run: flutter build web --release
-      - name: Set base href
-        run: sed -i 's|<base href="/">|<base href="/whatsapp-clone/">|' build/web/index.html
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
+      - name: Analyze
+        run: flutter analyze 2>&1 | tee analyze_output.txt
+        continue-on-error: true
+      - name: Show analyze output
+        run: cat analyze_output.txt
+      - name: Build web
+        run: flutter build web --release 2>&1 | tee build_output.txt
+        continue-on-error: true
+      - name: Show build errors
+        run: |
+          echo "=== GREP ERROR ===" && grep -in "error\|Error\|SEVERE" build_output.txt | head -40
+          echo "=== LAST 50 LINES ===" && tail -50 build_output.txt
+      - name: Check output
+        run: ls -la build/web/ 2>&1 && wc -c build/web/index.html 2>&1 || echo "No output"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
+          name: build-output
           path: build/web
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          if-no-files-found: warn
