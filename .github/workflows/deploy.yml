@@ -9,9 +9,16 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
@@ -21,30 +28,11 @@ jobs:
       - run: flutter pub get
       - run: flutter config --enable-web
       - run: flutter analyze > analyze_output.txt 2>&1 || true; cat analyze_output.txt
-      - name: Build web
-        run: flutter build web --release --base-href /whatsapp-clone/ 2>&1 | tee build_log.txt
-        continue-on-error: true
-      - name: Search errors in build log
-        run: |
-          echo "=== GREP ERROR ===" && grep -in "error\|Error\|SEVERE" build_log.txt | head -30
-          echo "=== LAST 50 LINES ===" && tail -50 build_log.txt
-          echo "=== build/web/ ===" && ls -la build/web/ 2>&1 || echo "build/web NOT FOUND"
-          echo "=== index.html size ===" && wc -c build/web/index.html 2>&1 || echo "index.html NOT FOUND"
-          echo "=== All index.html ===" && find . -name "index.html" -type f 2>/dev/null
-          echo "=== Files in build/web ===" && find build/web -type f 2>/dev/null | head -20
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - run: flutter build web --release --base-href /whatsapp-clone/
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: github-pages
           path: build/web
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
