@@ -22,6 +22,7 @@ jobs:
       - run: flutter --version
       - run: flutter doctor -v
       - run: flutter config --enable-web
+      - run: flutter analyze
       - run: flutter build web --release
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
