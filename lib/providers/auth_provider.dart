@@ -9,6 +9,7 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   ConfirmationResult? _confirmationResult;
+  String? _verificationId;
 
   User? get firebaseUser => _firebaseUser;
   AppUser? get appUser => _appUser;
@@ -43,6 +44,7 @@ class AuthProvider extends ChangeNotifier {
           _firebaseUser = null;
           _appUser = null;
           _confirmationResult = null;
+          _verificationId = null;
           _isNewUser = false;
         }
       } catch (_) {}
@@ -55,11 +57,13 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     _confirmationResult = null;
+    _verificationId = null;
     notifyListeners();
 
     try {
       final result = await FirebaseAuth.instance.signInWithPhoneNumber(phoneNumber);
       _confirmationResult = result;
+      _verificationId = result.verificationId;
     } on FirebaseAuthException catch (e) {
       _error = _getErrorMessage(e.code);
     } catch (e) {
@@ -70,33 +74,19 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> verifyOtp(String smsCode) async {
-    if (_confirmationResult == null || smsCode.isEmpty) return;
+    if (_verificationId == null || smsCode.isEmpty) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      await _confirmationResult!.confirm(smsCode);
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: smsCode,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
       _confirmationResult = null;
-      for (int i = 0; i < 20; i++) {
-        if (_firebaseUser != null) break;
-        final user = FirebaseService.auth.currentUser;
-        if (user != null) {
-          _firebaseUser = user;
-          break;
-        }
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-      if (_firebaseUser != null) {
-        final doc = await FirebaseService.users.doc(_firebaseUser!.uid).get();
-        if (doc.exists) {
-          _appUser = AppUser.fromMap(doc.data() as Map<String, dynamic>);
-          _isNewUser = false;
-        } else {
-          _appUser = AppUser(uid: _firebaseUser!.uid, phoneNumber: _firebaseUser!.phoneNumber ?? '', displayName: '');
-          _isNewUser = true;
-        }
-      }
+      _verificationId = null;
     } on FirebaseAuthException catch (e) {
       _error = _getErrorMessage(e.code);
     } catch (e) {
@@ -153,6 +143,7 @@ class AuthProvider extends ChangeNotifier {
     await FirebaseService.signOut();
     _appUser = null;
     _confirmationResult = null;
+    _verificationId = null;
     _isNewUser = false;
     notifyListeners();
   }
