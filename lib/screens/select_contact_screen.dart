@@ -137,11 +137,10 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     if (!_formKey.currentState!.validate()) return;
     final name = _nameCtrl.text.trim();
     final phone = '$_countryCode${_phoneCtrl.text.trim().replaceAll(RegExp(r'\s'), '')}';
-    final docId = phone.replaceAll('+', '');
 
     try {
-      await FirebaseService.users.doc(docId).set({
-        'uid': docId,
+      await FirebaseService.firestore.collection('users').add({
+        'uid': phone.replaceAll('+', ''),
         'phoneNumber': phone,
         'displayName': name,
         'email': '',

@@ -1,3 +1,4 @@
+import 'dart:html' as html;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +10,8 @@ import '../models/chat_model.dart';
 import '../widgets/chat_list_widget.dart';
 import 'chat_screen.dart';
 import 'select_contact_screen.dart';
+import 'settings_screen.dart';
+import 'create_group_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -117,9 +120,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         actions: [
           IconButton(icon: const Icon(Icons.camera_alt, color: Color(0xFFE9EDEF), size: 22), onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('الكاميرا غير متوفرة على الويب'), duration: Duration(seconds: 1)),
-            );
+            final input = html.FileUploadInputElement()..accept = 'image/*';
+            input.click();
           }),
           IconButton(icon: const Icon(Icons.search, color: Color(0xFFE9EDEF), size: 22), onPressed: () {}),
           PopupMenuButton<String>(
@@ -129,13 +131,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               if (v == 'logout') {
                 await auth.logout();
               } else if (v == 'new_group') {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('المجموعات قريباً'), duration: Duration(seconds: 1)),
-                  );
-                }
+                if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateGroupScreen()));
               } else if (v == 'settings') {
-                if (mounted) _showSettingsDialog();
+                if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
               }
             },
             itemBuilder: (_) => [
@@ -180,50 +178,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   mini: true,
                   backgroundColor: const Color(0xFF00A884),
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('الكاميرا غير متوفرة على الويب'), duration: Duration(seconds: 1)),
-                    );
+                    final input = html.FileUploadInputElement()..accept = 'image/*';
+                    input.click();
                   },
                   child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
                 )
               : null,
-    );
-  }
-
-  void _showSettingsDialog() {
-    final auth = context.read<AuthProvider>();
-    final user = auth.appUser;
-    showDialog(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          backgroundColor: const Color(0xFF1F2C33),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                radius: 36,
-                backgroundColor: const Color(0xFF00A884),
-                child: Text(
-                  (user?.displayName ?? 'U')[0].toUpperCase(),
-                  style: const TextStyle(fontSize: 28, color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(user?.displayName ?? '', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFFE9EDEF))),
-              const SizedBox(height: 4),
-              Text(user?.email ?? '', style: const TextStyle(fontSize: 13, color: Color(0xFF8696A0))),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إغلاق', style: TextStyle(color: Color(0xFF00A884))),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -518,11 +478,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             title: Text('إنشاء مجتمع جديد', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: const Color(0xFFE9EDEF))),
             subtitle: Text('أضف مجموعاتك في مكان واحد', style: const TextStyle(fontSize: 13, color: Color(0xFF8696A0))),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('المجتمعات قريباً'), duration: Duration(seconds: 1)),
-              );
-            },
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateGroupScreen())),
           ),
         ],
       ),
