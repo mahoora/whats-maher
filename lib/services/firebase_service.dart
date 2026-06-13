@@ -17,12 +17,6 @@ class FirebaseService {
   static CollectionReference messages(String chatId) =>
       _firestore.collection('chats').doc(chatId).collection('messages');
 
-  static Future<UserCredential> signIn(String email, String password) =>
-      _auth.signInWithEmailAndPassword(email: email, password: password);
-
-  static Future<UserCredential> signUp(String email, String password) =>
-      _auth.createUserWithEmailAndPassword(email: email, password: password);
-
   static Future<void> signOut() => _auth.signOut();
 
   static Future<String> uploadImage(String path, List<int> data) async {
