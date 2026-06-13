@@ -8,6 +8,7 @@ import '../services/firebase_service.dart';
 import '../models/chat_model.dart';
 import '../widgets/chat_list_widget.dart';
 import 'chat_screen.dart';
+import 'select_contact_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -157,7 +158,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ? FloatingActionButton(
               mini: true,
               backgroundColor: const Color(0xFF00A884),
-              onPressed: () {},
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SelectContactScreen())),
               child: const Icon(Icons.chat, color: Colors.white, size: 24),
             )
           : _tabCtrl.index == 2
