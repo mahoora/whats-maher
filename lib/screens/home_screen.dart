@@ -120,13 +120,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Color(0xFFE9EDEF), size: 22),
             color: const Color(0xFF2A3942),
-            onSelected: (v) {
-              if (v == 'logout') auth.logout();
+            onSelected: (v) async {
+              if (v == 'logout') await auth.logout();
             },
             itemBuilder: (_) => [
-              const PopupMenuItem(value: 'new_group', child: ListTile(leading: Icon(Icons.group_add, color: Color(0xFFE9EDEF)), title: Text('مجموعة جديدة', style: TextStyle(color: Color(0xFFE9EDEF))))),
-              const PopupMenuItem(value: 'settings', child: ListTile(leading: Icon(Icons.settings, color: Color(0xFFE9EDEF)), title: Text('الإعدادات', style: TextStyle(color: Color(0xFFE9EDEF))))),
-              const PopupMenuItem(value: 'logout', child: ListTile(leading: Icon(Icons.logout, color: Color(0xFFE9EDEF)), title: Text('تسجيل الخروج', style: TextStyle(color: Color(0xFFE9EDEF))))),
+              const PopupMenuItem(value: 'new_group', child: Text('مجموعة جديدة', style: TextStyle(color: Color(0xFFE9EDEF)))),
+              const PopupMenuItem(value: 'settings', child: Text('الإعدادات', style: TextStyle(color: Color(0xFFE9EDEF)))),
+              const PopupMenuItem(value: 'logout', child: Text('تسجيل الخروج', style: TextStyle(color: Color(0xFFE9EDEF)))),
             ],
           ),
         ],

@@ -82,16 +82,20 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> setOnlineStatus(bool online) async {
     if (_firebaseUser == null) return;
-    await FirebaseService.users.doc(_firebaseUser!.uid).update({
-      'isOnline': online,
-      'lastSeen': FieldValue.serverTimestamp(),
-    });
+    try {
+      await FirebaseService.users.doc(_firebaseUser!.uid).update({
+        'isOnline': online,
+        'lastSeen': FieldValue.serverTimestamp(),
+      });
+    } catch (_) {}
   }
 
   Future<void> logout() async {
-    await setOnlineStatus(false);
+    try { await setOnlineStatus(false); } catch (_) {}
     await FirebaseService.signOut();
+    _firebaseUser = null;
     _appUser = null;
+    _error = null;
     notifyListeners();
   }
 
