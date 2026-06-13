@@ -9,8 +9,7 @@ class AuthProvider extends ChangeNotifier {
   AppUser? _appUser;
   bool _isLoading = false;
   String? _error;
-  String? _verificationId;
-  String? _pendingPhone;
+  ConfirmationResult? _confirmationResult;
 
   User? get firebaseUser => _firebaseUser;
   AppUser? get appUser => _appUser;
@@ -18,11 +17,8 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isAuthenticated => _firebaseUser != null;
   String get userId => _firebaseUser?.uid ?? '';
-  bool get otpSent => _verificationId != null;
-  String? get pendingPhone => _pendingPhone;
-
+  bool get otpSent => _confirmationResult != null;
   bool _isNewUser = false;
-
   bool get isNewUser => _isNewUser;
 
   AuthProvider() {
@@ -41,8 +37,7 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _firebaseUser = null;
         _appUser = null;
-        _verificationId = null;
-        _pendingPhone = null;
+        _confirmationResult = null;
         _isNewUser = false;
       }
       notifyListeners();
@@ -53,56 +48,30 @@ class AuthProvider extends ChangeNotifier {
     if (phoneNumber.isEmpty) return;
     _isLoading = true;
     _error = null;
-    _verificationId = null;
+    _confirmationResult = null;
     notifyListeners();
 
     try {
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        timeout: const Duration(seconds: 60),
-        verificationCompleted: (credential) async {
-          await FirebaseAuth.instance.signInWithCredential(credential);
-        },
-        verificationFailed: (e) {
-          _error = _getErrorMessage(e.code);
-          _isLoading = false;
-          notifyListeners();
-        },
-        codeSent: (verId, forceResend) {
-          _verificationId = verId;
-          _pendingPhone = phoneNumber;
-          _isLoading = false;
-          notifyListeners();
-        },
-        codeAutoRetrievalTimeout: (verId) {
-          if (_verificationId == null) {
-            _error = 'انتهت مهلة التحقق';
-            _isLoading = false;
-            notifyListeners();
-          }
-        },
-      );
+      final result = await FirebaseAuth.instance.signInWithPhoneNumber(phoneNumber);
+      _confirmationResult = result;
+    } on FirebaseAuthException catch (e) {
+      _error = _getErrorMessage(e.code);
     } catch (e) {
       _error = 'فشل إرسال رمز التحقق';
-      _isLoading = false;
-      notifyListeners();
     }
+    _isLoading = false;
+    notifyListeners();
   }
 
   Future<void> verifyOtp(String smsCode) async {
-    if (_verificationId == null || smsCode.isEmpty) return;
+    if (_confirmationResult == null || smsCode.isEmpty) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final credential = PhoneAuthProvider.credential(
-        verificationId: _verificationId!,
-        smsCode: smsCode,
-      );
-      await FirebaseAuth.instance.signInWithCredential(credential);
-      _verificationId = null;
-      _pendingPhone = null;
+      await _confirmationResult!.confirm(smsCode);
+      _confirmationResult = null;
     } on FirebaseAuthException catch (e) {
       _error = _getErrorMessage(e.code);
     } catch (e) {
@@ -158,8 +127,7 @@ class AuthProvider extends ChangeNotifier {
     await setOnlineStatus(false);
     await FirebaseService.signOut();
     _appUser = null;
-    _verificationId = null;
-    _pendingPhone = null;
+    _confirmationResult = null;
     _isNewUser = false;
     notifyListeners();
   }
@@ -177,6 +145,7 @@ class AuthProvider extends ChangeNotifier {
       case 'session-expired': return 'انتهت صلاحية الجلسة، أعد المحاولة';
       case 'captcha-check-failed': return 'فشل التحقق الأمني، حاول مرة أخرى';
       case 'web-context-already-presented': return '';
+      case 'operation-not-allowed': return 'مصادقة الهاتف غير مفعلة، تأكد من Firebase Console';
       default: return 'خطأ: $code';
     }
   }
