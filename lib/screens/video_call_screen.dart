@@ -86,7 +86,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 
   void _addButtons() {
-    if (_controls == null || !_controls!.isConnected) return;
+    if (_controls == null || _controls!.isConnected != true) return;
     _controls!.innerHtml = '';
     _controls!.append(_btn(_micOn ? '🎤' : '🔇', () {
       _micOn = !_micOn;
