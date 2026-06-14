@@ -17,6 +17,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _nameCtrl = TextEditingController();
   String? _photoBase64;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -46,35 +47,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final auth = context.read<AuthProvider>();
     final uid = auth.userId;
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) return;
 
+    setState(() => _saving = true);
+
     try {
-      final data = <String, dynamic>{'displayName': name};
+      final data = <String, dynamic>{
+        'displayName': name,
+        'updatedAt': Timestamp.now(),
+      };
       if (_photoBase64 != null) {
-        final bytes = base64Decode(_photoBase64!.split(',').last);
-        try {
-          // Try Firebase Storage first
-          final url = await FirebaseService.uploadImage('profiles/$uid.jpg', bytes);
-          data['photoUrl'] = url;
-        } catch (_) {
-          // Fallback: store base64 in Firestore
-          data['photoUrl'] = _photoBase64;
-          data['photoBase64'] = _photoBase64;
-        }
+        data['photoUrl'] = _photoBase64;
       }
-      // Use set with merge instead of update to avoid "document doesn't exist" error
-      await FirebaseService.users.doc(uid).set(data, SetOptions(merge: true));
-      if (mounted) Navigator.pop(context);
+
+      html.window.console.log('Saving profile uid=$uid data=${data.keys}');
+      await FirebaseService.firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
+      html.window.console.log('Profile saved successfully');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ')));
+        Navigator.pop(context);
+      }
     } catch (e) {
+      html.window.console.error('Save profile error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل الحفظ: $e')),
+          SnackBar(content: Text('خطأ: $e'), duration: const Duration(seconds: 5)),
         );
       }
     }
+    setState(() => _saving = false);
   }
 
   @override
@@ -106,8 +112,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     backgroundColor: const Color(0xFF313D45),
                     backgroundImage: _photoBase64 != null
                         ? MemoryImage(base64Decode(_photoBase64!.split(',').last))
-                        : null,
-                    child: _photoBase64 == null
+                        : (user?.photoUrl != null && user!.photoUrl!.isNotEmpty
+                            ? (user.photoUrl!.startsWith('data:')
+                                ? MemoryImage(base64Decode(user.photoUrl!.split(',').last))
+                                : NetworkImage(user.photoUrl!))
+                            : null),
+                    child: _photoBase64 == null && (user?.photoUrl == null || user!.photoUrl!.isEmpty)
                         ? Text(
                             (user?.displayName ?? 'U')[0].toUpperCase(),
                             style: const TextStyle(fontSize: 36, color: Color(0xFFE9EDEF)),
@@ -166,12 +176,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: double.infinity,
             height: 48,
             child: ElevatedButton(
-              onPressed: _save,
+              onPressed: _saving ? null : _save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00A884),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('حفظ', style: TextStyle(color: Colors.white, fontSize: 16)),
+              child: _saving
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('حفظ', style: TextStyle(color: Colors.white, fontSize: 16)),
             ),
           ),
         ],

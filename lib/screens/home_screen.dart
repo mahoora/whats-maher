@@ -98,6 +98,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return _buildMainView();
   }
 
+  void _pickAndUploadStatus() {
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
+    input.onChange.listen((e) async {
+      final files = input.files;
+      if (files!.isEmpty) return;
+      final reader = html.FileReader();
+      reader.readAsDataUrl(files[0]);
+      reader.onLoadEnd.listen((_) async {
+        final b64 = reader.result as String;
+        final uid = context.read<AuthProvider>().userId;
+        try {
+          html.window.console.log('Uploading status for uid=$uid');
+          await FirebaseService.firestore.collection('status').add({
+            'uid': uid,
+            'imageBase64': b64,
+            'createdAt': Timestamp.now(),
+          });
+          html.window.console.log('Status uploaded');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
+          }
+        } catch (e) {
+          html.window.console.error('Status upload error: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('خطأ: $e')),
+            );
+          }
+        }
+      });
+    });
+  }
+
   Widget _buildMainView() {
     final auth = context.watch<AuthProvider>();
     return Scaffold(
@@ -182,45 +216,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 )
               : null,
     );
-  }
-
-  void _pickAndUploadStatus() {
-    final input = html.FileUploadInputElement()..accept = 'image/*';
-    input.click();
-    input.onChange.listen((e) async {
-      final files = input.files;
-      if (files!.isEmpty) return;
-      final reader = html.FileReader();
-      reader.readAsDataUrl(files[0]);
-      reader.onLoadEnd.listen((_) async {
-        final b64 = reader.result as String;
-        final bytes = base64Decode(b64.split(',').last);
-        final uid = context.read<AuthProvider>().userId;
-        try {
-          final ref = FirebaseService.storage.ref().child('status/${DateTime.now().millisecondsSinceEpoch}.jpg');
-          await ref.putData(bytes);
-          final url = await ref.getDownloadURL();
-          await FirebaseService.firestore.collection('status').add({
-            'uid': uid,
-            'imageUrl': url,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
-        } catch (_) {
-          // Fallback: store base64 directly in Firestore
-          try {
-            await FirebaseService.firestore.collection('status').add({
-              'uid': uid,
-              'imageBase64': b64,
-              'createdAt': FieldValue.serverTimestamp(),
-            });
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
-          } catch (e) {
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل: $e')));
-          }
-        }
-      });
-    });
   }
 
   Widget _buildChatsTab() {
@@ -394,11 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             title: Text('رابط مكالمة جديد', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: const Color(0xFFE9EDEF))),
             subtitle: Text('إنشاء رابط مكالمة للمشاركة', style: const TextStyle(fontSize: 13, color: Color(0xFF8696A0))),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('المكالمات غير متوفرة على الويب'), duration: Duration(seconds: 1)),
-              );
-            },
+            onTap: () => _startCall(),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -420,17 +411,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             trailing: IconButton(
               icon: const Icon(Icons.phone, color: Color(0xFF00A884)),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('المكالمات غير متوفرة على الويب'), duration: Duration(seconds: 1)),
-                );
-              },
+              onPressed: () => _startCall(),
             ),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('المكالمات غير متوفرة على الويب'), duration: Duration(seconds: 1)),
-              );
-            },
+            onTap: () => _startCall(),
           ),
           ListTile(
             leading: CircleAvatar(
@@ -448,21 +431,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             trailing: IconButton(
               icon: const Icon(Icons.phone, color: Color(0xFF00A884)),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('المكالمات غير متوفرة على الويب'), duration: Duration(seconds: 1)),
-                );
-              },
+              onPressed: () => _startCall(),
             ),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('المكالمات غير متوفرة على الويب'), duration: Duration(seconds: 1)),
-              );
-            },
+            onTap: () => _startCall(),
           ),
         ],
       ),
     );
+  }
+
+  void _startCall() {
+    html.window.open('https://meet.google.com/', '_blank');
   }
 
   Widget _buildCommunitiesTab() {

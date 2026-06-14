@@ -1,3 +1,5 @@
+import 'dart:html' as html;
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -137,41 +139,53 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     if (!_formKey.currentState!.validate()) return;
     final name = _nameCtrl.text.trim();
     final phone = '$_countryCode${_phoneCtrl.text.trim().replaceAll(RegExp(r'\s'), '')}';
-    final auth = context.read<AuthProvider>();
 
     try {
+      final auth = context.read<AuthProvider>();
       final uid = auth.userId;
       if (uid.isEmpty) throw Exception('غير مصرح');
       final phoneKey = phone.replaceAll('+', '');
-      final userDoc = FirebaseService.users.doc(uid);
+
+      html.window.console.log('Saving contact uid=$uid phone=$phone');
+
+      // Read existing user doc
+      final userDoc = FirebaseService.firestore.collection('users').doc(uid);
       final docSnap = await userDoc.get();
-      if (docSnap.exists) {
-        // Update existing doc: store contacts in a map field
-        await userDoc.update({
-          'contacts.$phoneKey': {
-            'phoneNumber': phone,
-            'displayName': name,
-            'createdAt': FieldValue.serverTimestamp(),
-          },
-        });
-      } else {
-        // Create doc with contacts (unlikely but safe)
+
+      if (!docSnap.exists) {
+        html.window.console.log('User doc $uid does not exist, creating');
         await userDoc.set({
           'uid': uid,
+          'email': auth.appUser?.email ?? '',
+          'displayName': auth.appUser?.displayName ?? '',
           'contacts': {
             phoneKey: {
               'phoneNumber': phone,
               'displayName': name,
-              'createdAt': FieldValue.serverTimestamp(),
+              'createdAt': DateTime.now().toIso8601String(),
             },
           },
-        }, SetOptions(merge: true));
+        });
+      } else {
+        html.window.console.log('User doc $uid exists, updating contacts');
+        final data = docSnap.data() as Map<String, dynamic>;
+        final contacts = data['contacts'] is Map ? Map<String, dynamic>.from(data['contacts'] as Map) : <String, dynamic>{};
+        contacts[phoneKey] = {
+          'phoneNumber': phone,
+          'displayName': name,
+          'createdAt': DateTime.now().toIso8601String(),
+        };
+        await userDoc.set({'contacts': contacts}, SetOptions(merge: true));
       }
+
+      html.window.console.log('Contact saved successfully');
       if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ')));
     } catch (e) {
+      html.window.console.error('Save contact error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('فشل الحفظ: $e')),
+          SnackBar(content: Text('خطأ: $e'), duration: const Duration(seconds: 5)),
         );
       }
     }
@@ -199,9 +213,10 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       chatProv.selectChat(chatId, user.displayName, user.displayName[0].toUpperCase());
       if (mounted) Navigator.pop(context);
     } catch (e) {
+      html.window.console.error('Start chat error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('فشل بدء المحادثة')),
+          SnackBar(content: Text('خطأ: $e')),
         );
       }
     }
