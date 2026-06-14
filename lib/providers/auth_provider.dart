@@ -71,7 +71,52 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Start phone OTP verification
+  /// Email/password login
+  Future<void> login(String email, String password) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await FirebaseService.auth.signInWithEmailAndPassword(email: email, password: password);
+    } on fb_auth.FirebaseAuthException catch (e) {
+      _error = _getErrorMessage(e.code);
+    } catch (e) {
+      _error = 'حدث خطأ غير متوقع';
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Email/password register
+  Future<void> register(String email, String password, String name) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final cred = await FirebaseService.auth.createUserWithEmailAndPassword(email: email, password: password);
+      final uid = cred.user!.uid;
+      final userData = {
+        'uid': uid,
+        'email': email,
+        'displayName': name,
+        'photoUrl': null,
+        'status': 'مرحباً، أنا على واتساب',
+        'isOnline': true,
+        'lastSeen': DateTime.now(),
+        'createdAt': DateTime.now(),
+      };
+      await FirebaseService.users.doc(uid).set(userData);
+      _appUser = AppUser.fromMap(userData);
+    } on fb_auth.FirebaseAuthException catch (e) {
+      _error = _getErrorMessage(e.code);
+    } catch (e) {
+      _error = 'حدث خطأ غير متوقع';
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Phone OTP
   Future<void> sendPhoneOtp(String phoneNumber) async {
     _isLoading = true;
     _error = null;
@@ -109,7 +154,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Verify OTP code and sign in
   Future<void> verifyOtp(String code) async {
     if (_verificationId == null) return;
     _isLoading = true;
@@ -130,7 +174,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Send OTP again
   Future<void> resendOtp(String phoneNumber) async {
     await sendPhoneOtp(phoneNumber);
   }
@@ -148,10 +191,24 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     _verificationId = null;
     try { await setOnlineStatus(false); } catch (_) {}
-    await FirebaseService.signOut();
+    await FirebaseService.auth.signOut();
     _firebaseUser = null;
     _appUser = null;
     _error = null;
     notifyListeners();
+  }
+
+  String _getErrorMessage(String code) {
+    switch (code) {
+      case 'user-not-found': return 'البريد الإلكتروني غير مسجل';
+      case 'wrong-password': return 'كلمة المرور غير صحيحة';
+      case 'invalid-email': return 'البريد الإلكتروني غير صحيح';
+      case 'email-already-in-use': return 'البريد الإلكتروني مستخدم مسبقاً';
+      case 'weak-password': return 'كلمة المرور ضعيفة (6 أحرف على الأقل)';
+      case 'too-many-requests': return 'محاولات كثيرة، حاول لاحقاً';
+      case 'invalid-verification-code': return 'رمز التحقق غير صحيح';
+      case 'invalid-phone-number': return 'رقم الهاتف غير صحيح';
+      default: return 'خطأ: $code';
+    }
   }
 }
