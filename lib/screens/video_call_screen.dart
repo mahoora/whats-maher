@@ -12,11 +12,11 @@ class VideoCallScreen extends StatefulWidget {
 class _VideoCallScreenState extends State<VideoCallScreen> {
   bool _micOn = true;
   bool _videoOn = true;
+  bool _loading = true;
   String? _error;
   html.MediaStream? _stream;
   html.DivElement? _overlay;
   html.VideoElement? _video;
-  html.DivElement? _controls;
 
   @override
   void initState() {
@@ -32,91 +32,111 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       ..style.width = '100%'
       ..style.height = '100%'
       ..style.backgroundColor = 'black'
-      ..style.zIndex = '99999'
+      ..style.zIndex = '999999'
       ..style.display = 'flex'
-      ..style.flexDirection = 'column'
-      ..style.overflow = 'hidden';
+      ..style.flexDirection = 'column';
 
-    // Name label
-    final nameLabel = html.DivElement()
-      ..style.padding = '40px 16px 0'
-      ..style.textAlign = 'center'
+    final topBar = html.DivElement()
+      ..style.padding = '40px 20px 0'
+      ..style.display = 'flex'
+      ..style.alignItems = 'center'
+      ..style.justifyContent = 'space-between';
+    final nameEl = html.SpanElement()
       ..style.color = 'white'
-      ..style.fontSize = '20px'
+      ..style.fontSize = '18px'
       ..style.fontWeight = 'bold'
       ..innerText = widget.name;
-    _overlay!.append(nameLabel);
+    final closeBtn = html.ButtonElement()
+      ..style.background = 'none'
+      ..style.border = 'none'
+      ..style.color = 'white'
+      ..style.fontSize = '24px'
+      ..style.cursor = 'pointer'
+      ..style.padding = '8px'
+      ..innerText = '✕';
+    closeBtn.onClick.listen((_) { _cleanUp(); if (mounted) Navigator.pop(context); });
+    topBar.append(nameEl);
+    topBar.append(closeBtn);
+    _overlay!.append(topBar);
 
-    // Video element
+    // Video container
+    final videoContainer = html.DivElement()
+      ..style.flex = '1'
+      ..style.display = 'flex'
+      ..style.alignItems = 'center'
+      ..style.justifyContent = 'center'
+      ..style.overflow = 'hidden';
+
     _video = html.VideoElement()
       ..autoplay = true
       ..muted = true
       ..setAttribute('playsinline', '')
-      ..style.flex = '1'
-      ..style.width = '100%'
-      ..style.objectFit = 'cover';
-    _overlay!.append(_video!);
+      ..style.maxWidth = '100%'
+      ..style.maxHeight = '100%'
+      ..style.objectFit = 'contain';
+    videoContainer.append(_video!);
+    _overlay!.append(videoContainer);
 
     // Controls
-    _controls = html.DivElement()
-      ..style.padding = '24px'
+    final controlsRow = html.DivElement()
+      ..style.padding = '20px 24px'
       ..style.display = 'flex'
       ..style.justifyContent = 'center'
-      ..style.gap = '32px';
-    _overlay!.append(_controls!);
+      ..style.gap = '32px'
+      ..style.alignItems = 'center';
+    _overlay!.append(controlsRow);
 
     html.document.body!.append(_overlay!);
-    _initCamera();
+    _initCamera(controlsRow);
   }
 
-  Future<void> _initCamera() async {
+  Future<void> _initCamera(html.DivElement controlsRow) async {
     try {
       _stream = await html.window.navigator.mediaDevices!.getUserMedia({
-        'video': true,
+        'video': {'width': 640, 'height': 480, 'facingMode': 'user'},
         'audio': true,
       });
       _video!.srcObject = _stream;
-      _addButtons();
+      _addButtons(controlsRow);
+      if (mounted) setState(() => _loading = false);
     } catch (e) {
       html.window.console.error('Camera error: $e');
-      if (_overlay != null) {
-        _overlay!.children.first.innerText = 'تعذر الوصول للكاميرا: تأكد من السماح بها';
-      }
+      if (mounted) setState(() { _loading = false; _error = 'تعذر الوصول للكاميرا/الميكروفون'; });
     }
   }
 
-  void _addButtons() {
-    if (_controls == null || _controls!.isConnected != true) return;
-    _controls!.innerHtml = '';
-    _controls!.append(_btn(_micOn ? '🎤' : '🔇', () {
+  void _addButtons(html.DivElement controlsRow) {
+    controlsRow.innerHtml = '';
+    controlsRow.append(_circleBtn(_micOn ? '🎤' : '🔇', () {
       _micOn = !_micOn;
       _stream?.getAudioTracks().forEach((t) => t.enabled = _micOn);
-      _addButtons();
+      _addButtons(controlsRow);
     }));
-    _controls!.append(_btn('📞', () {
+    controlsRow.append(_circleBtn('📞', () {
       _cleanUp();
       if (mounted) Navigator.pop(context);
-    }, red: true));
-    _controls!.append(_btn(_videoOn ? '📹' : '🚫', () {
+    }, red: true, big: true));
+    controlsRow.append(_circleBtn(_videoOn ? '📹' : '🚫', () {
       _videoOn = !_videoOn;
       _stream?.getVideoTracks().forEach((t) => t.enabled = _videoOn);
-      _addButtons();
+      _addButtons(controlsRow);
     }));
   }
 
-  html.Element _btn(String text, void Function() onTap, {bool red = false}) {
+  html.Element _circleBtn(String text, void Function() onTap, {bool red = false, bool big = false}) {
     final btn = html.ButtonElement()
-      ..style.width = '56px'
-      ..style.height = '56px'
+      ..style.width = big ? '64px' : '52px'
+      ..style.height = big ? '64px' : '52px'
       ..style.borderRadius = '50%'
       ..style.border = 'none'
-      ..style.fontSize = '28px'
+      ..style.fontSize = '24px'
       ..style.cursor = 'pointer'
       ..style.backgroundColor = red ? '#EF4444' : '#2A3942'
       ..style.color = 'white'
       ..style.display = 'flex'
       ..style.alignItems = 'center'
       ..style.justifyContent = 'center'
+      ..style.transition = '0.2s'
       ..innerText = text;
     btn.onClick.listen((_) => onTap());
     return btn;
@@ -126,9 +146,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     _stream?.getTracks().forEach((t) => t.stop());
     _video?.remove();
     _overlay?.remove();
-    _stream = null;
-    _video = null;
-    _overlay = null;
+    _stream = null; _video = null; _overlay = null;
   }
 
   @override
@@ -139,6 +157,22 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.shrink();
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: _loading
+            ? const Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF00A884)),
+                  SizedBox(height: 16),
+                  Text('جاري تشغيل الكاميرا...', style: TextStyle(color: Colors.white, fontSize: 16)),
+                ],
+              )
+            : _error != null
+                ? Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 16))
+                : const SizedBox.shrink(),
+      ),
+    );
   }
 }
