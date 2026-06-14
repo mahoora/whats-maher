@@ -24,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late TabController _tabCtrl;
+  html.FileUploadInputElement? _statusInput;
 
   @override
   void initState() {
@@ -32,11 +33,70 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _tabCtrl.addListener(() {
       if (!_tabCtrl.indexIsChanging) setState(() {});
     });
+    _initStatusInput();
+  }
+
+  void _initStatusInput() {
+    _statusInput = html.FileUploadInputElement()
+      ..accept = 'image/*'
+      ..setAttribute('capture', 'environment')
+      ..style.position = 'fixed'
+      ..style.top = '0'
+      ..style.left = '0'
+      ..style.width = '1px'
+      ..style.height = '1px'
+      ..style.opacity = '0';
+    html.document.body!.append(_statusInput!);
+    _statusInput!.onChange.listen((e) async {
+      final files = _statusInput!.files;
+      if (files == null || files.isEmpty) {
+        html.window.console.log('No file selected');
+        return;
+      }
+      final reader = html.FileReader();
+      reader.onError.listen((e2) {
+        html.window.console.error('FileReader error: $e2');
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خطأ في قراءة الملف')));
+      });
+      reader.onLoad.listen((_) async {
+        final b64 = reader.result as String?;
+        if (b64 == null) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الملف فارغ')));
+          return;
+        }
+        if (b64.length > 900000) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الصورة كبيرة جداً')));
+          return;
+        }
+        final uid = context.read<AuthProvider>().userId;
+        try {
+          html.window.console.log('Uploading status for uid=$uid');
+          await FirebaseService.firestore.collection('status').add({
+            'uid': uid,
+            'imageBase64': b64,
+            'createdAt': Timestamp.now(),
+          });
+          html.window.console.log('Status uploaded');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
+          }
+        } catch (e) {
+          html.window.console.error('Status upload error: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('خطأ: $e'), duration: const Duration(seconds: 5)),
+            );
+          }
+        }
+      });
+      reader.readAsDataUrl(files[0]);
+    });
   }
 
   @override
   void dispose() {
     _tabCtrl.dispose();
+    _statusInput?.remove();
     super.dispose();
   }
 
@@ -100,62 +160,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   void _pickAndUploadStatus() {
-    final input = html.FileUploadInputElement()
-      ..accept = 'image/*'
-      ..setAttribute('capture', 'environment')
-      ..style.position = 'fixed'
-      ..style.top = '0'
-      ..style.left = '0'
-      ..style.width = '1px'
-      ..style.height = '1px'
-      ..style.opacity = '0';
-    html.document.body!.append(input);
-    input.click();
-    input.onChange.listen((e) async {
-      final files = input.files;
-      input.remove();
-      if (files == null || files.isEmpty) {
-        html.window.console.log('No file selected');
-        return;
-      }
-      final reader = html.FileReader();
-      reader.onError.listen((e) {
-        html.window.console.error('FileReader error: $e');
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('خطأ في قراءة الملف')));
-      });
-      reader.onLoad.listen((_) async {
-        final b64 = reader.result as String?;
-        if (b64 == null) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الملف فارغ')));
-          return;
-        }
-        if (b64.length > 900000) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الصورة كبيرة جداً، اختر صورة أصغر')));
-          return;
-        }
-        final uid = context.read<AuthProvider>().userId;
-        try {
-          html.window.console.log('Uploading status for uid=$uid');
-          await FirebaseService.firestore.collection('status').add({
-            'uid': uid,
-            'imageBase64': b64,
-            'createdAt': Timestamp.now(),
-          });
-          html.window.console.log('Status uploaded');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إضافة الحالة')));
-          }
-        } catch (e) {
-          html.window.console.error('Status upload error: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('خطأ: $e'), duration: const Duration(seconds: 5)),
-            );
-          }
-        }
-      });
-      reader.readAsDataUrl(files[0]);
-    });
+    _statusInput?.click();
   }
 
   Widget _buildMainView() {

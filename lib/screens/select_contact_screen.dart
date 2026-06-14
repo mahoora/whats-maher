@@ -217,13 +217,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
               children: [
                 _optionChip(Icons.message, 'رسالة', () {
                   Navigator.pop(ctx);
-                  if (item.user != null) {
-                    _startChat(item.user!);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('هذا الشخص غير مسجل على واتساب بعد')),
-                    );
-                  }
+                  _startChat(name: item.name, phone: item.subtitle, user: item.user);
                 }),
                 _optionChip(Icons.videocam, 'اتصال فيديو', () {
                   Navigator.pop(ctx);
@@ -269,14 +263,15 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     );
   }
 
-  Future<void> _startChat(AppUser user) async {
+  Future<void> _startChat({required String name, String phone = '', AppUser? user}) async {
     final auth = context.read<AuthProvider>();
     final chatProv = context.read<ChatProvider>();
     final myUid = auth.userId;
     if (myUid.isEmpty) return;
 
-    final participants = [myUid, user.uid];
-    participants.sort();
+    final otherId = user?.uid ?? 'phone_${phone.replaceAll('+', '')}';
+    final otherName = user?.displayName ?? name;
+    final participants = [myUid, otherId]..sort();
     final chatId = participants.join('_');
 
     try {
@@ -284,11 +279,11 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       if (!doc.exists) {
         await chatProv.createChat(
           participants,
-          user.displayName,
-          user.displayName[0].toUpperCase(),
+          otherName,
+          otherName[0].toUpperCase(),
         );
       }
-      chatProv.selectChat(chatId, user.displayName, user.displayName[0].toUpperCase());
+      chatProv.selectChat(chatId, otherName, otherName[0].toUpperCase());
       if (mounted) Navigator.pop(context);
     } catch (e) {
       html.window.console.error('Start chat error: $e');
