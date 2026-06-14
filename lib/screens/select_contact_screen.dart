@@ -19,7 +19,6 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  String _countryCode = '+966';
 
   final _countries = [
     'SA', 'AE', 'EG', 'KW', 'QA', 'BH', 'OM', 'IQ', 'YE', 'SY', 'JO', 'LB', 'PS',
@@ -48,6 +47,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   void _showAddDialog() {
     _nameCtrl.clear();
     _phoneCtrl.clear();
+    var countryCode = '+966';
     showDialog(
       context: context,
       builder: (ctx) => Directionality(
@@ -57,76 +57,75 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
           title: const Text('إضافة جهة اتصال جديدة', style: TextStyle(color: Color(0xFFE9EDEF), fontSize: 18)),
           content: Form(
             key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: _nameCtrl,
-                  textDirection: TextDirection.rtl,
-                  style: const TextStyle(color: Color(0xFFE9EDEF)),
-                  decoration: InputDecoration(
-                    labelText: 'الاسم',
-                    labelStyle: const TextStyle(color: Color(0xFF8696A0)),
-                    filled: true,
-                    fillColor: const Color(0xFF2A3942),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            child: StatefulBuilder(builder: (context, setDialogState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: _nameCtrl,
+                    textDirection: TextDirection.rtl,
+                    style: const TextStyle(color: Color(0xFFE9EDEF)),
+                    decoration: InputDecoration(
+                      labelText: 'الاسم',
+                      labelStyle: const TextStyle(color: Color(0xFF8696A0)),
+                      filled: true,
+                      fillColor: const Color(0xFF2A3942),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'أدخل الاسم' : null,
                   ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'أدخل الاسم' : null,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2A3942),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _countryCode,
-                          dropdownColor: const Color(0xFF2A3942),
-                          style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 14),
-                          items: _countries.map((c) {
-                            return DropdownMenuItem(
-                              value: _codes[c],
-                              child: Text('${_codes[c]} (${_names[c]})'),
-                            );
-                          }).toList(),
-                          onChanged: (v) => setState(() => _countryCode = v!),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A3942),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: countryCode,
+                            dropdownColor: const Color(0xFF2A3942),
+                            style: const TextStyle(color: Color(0xFFE9EDEF), fontSize: 14),
+                            items: _countries.map((c) {
+                              return DropdownMenuItem(
+                                value: _codes[c],
+                                child: Text('${_codes[c]} (${_names[c]})'),
+                              );
+                            }).toList(),
+                            onChanged: (v) => setDialogState(() => countryCode = v!),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _phoneCtrl,
-                        textDirection: TextDirection.ltr,
-                        keyboardType: TextInputType.phone,
-                        style: const TextStyle(color: Color(0xFFE9EDEF)),
-                        decoration: InputDecoration(
-                          labelText: 'رقم الهاتف',
-                          labelStyle: const TextStyle(color: Color(0xFF8696A0)),
-                          filled: true,
-                          fillColor: const Color(0xFF2A3942),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _phoneCtrl,
+                          textDirection: TextDirection.ltr,
+                          keyboardType: TextInputType.phone,
+                          style: const TextStyle(color: Color(0xFFE9EDEF)),
+                          decoration: InputDecoration(
+                            labelText: 'رقم الهاتف',
+                            labelStyle: const TextStyle(color: Color(0xFF8696A0)),
+                            filled: true,
+                            fillColor: const Color(0xFF2A3942),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                          ),
+                          validator: (v) => v == null || v.trim().length < 6 ? 'رقم غير صحيح' : null,
                         ),
-                        validator: (v) => v == null || v.trim().length < 6 ? 'رقم غير صحيح' : null,
                       ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                    ],
+                  ),
+                ],
+              );
+            }),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء', style: TextStyle(color: Color(0xFF8696A0))),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء', style: TextStyle(color: Color(0xFF8696A0)))),
             ElevatedButton(
-              onPressed: () => _saveContact(ctx),
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00A884)),
+              onPressed: () => _saveContact(ctx, countryCode),
               child: const Text('حفظ', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -135,10 +134,10 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     );
   }
 
-  Future<void> _saveContact(BuildContext dialogCtx) async {
+  Future<void> _saveContact(BuildContext dialogCtx, String countryCode) async {
     if (!_formKey.currentState!.validate()) return;
     final name = _nameCtrl.text.trim();
-    final phone = '$_countryCode${_phoneCtrl.text.trim().replaceAll(RegExp(r'\s'), '')}';
+    final phone = '$countryCode${_phoneCtrl.text.trim().replaceAll(RegExp(r'\s'), '')}';
 
     try {
       final auth = context.read<AuthProvider>();
