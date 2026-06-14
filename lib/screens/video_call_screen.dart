@@ -31,7 +31,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       final video = html.VideoElement()
         ..autoplay = true
         ..muted = true
-        ..playsInline = true
+        ..setAttribute('playsinline', '')
         ..srcObject = _stream;
       html.document.body!.append(video);
       video.style.position = 'absolute';
