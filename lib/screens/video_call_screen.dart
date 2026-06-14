@@ -1,5 +1,5 @@
 import 'dart:html' as html;
-import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 class VideoCallScreen extends StatefulWidget {
@@ -14,7 +14,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   bool _cameraReady = false;
   bool _micOn = true;
   bool _videoOn = true;
+  String? _error;
   html.MediaStream? _stream;
+  html.VideoElement? _video;
 
   @override
   void initState() {
@@ -28,34 +30,40 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
         'video': true,
         'audio': true,
       });
-      final video = html.VideoElement()
+      _video = html.VideoElement()
         ..autoplay = true
         ..muted = true
         ..setAttribute('playsinline', '')
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..style.objectFit = 'cover'
         ..srcObject = _stream;
-      html.document.body!.append(video);
-      video.style.position = 'absolute';
-      video.style.top = '0';
-      video.style.left = '0';
-      video.style.width = '100%';
-      video.style.height = '100%';
-      video.style.objectFit = 'cover';
-      video.style.zIndex = '0';
+      html.document.body!.append(_video!);
+      // Register for Flutter HtmlElementView
+      // ignore: undefined_prefixed_name
+      ui.platformViewRegistry.registerViewFactory('call-video', (int id) => _video!);
       if (mounted) setState(() => _cameraReady = true);
     } catch (e) {
       html.window.console.error('Camera error: $e');
+      if (mounted) setState(() => _error = 'تعذر الوصول للكاميرا: تأكد من السماح بها في المتصفح');
     }
   }
 
   @override
   void dispose() {
     _stream?.getTracks().forEach((t) => t.stop());
-    // Remove video element
-    final els = html.document.querySelectorAll('video');
-    for (final el in els) {
-      if (el.parentNode != null) el.remove();
-    }
+    if (_video?.parentNode != null) _video!.remove();
     super.dispose();
+  }
+
+  void _toggleMic() {
+    _stream?.getAudioTracks().forEach((t) { t.enabled = !_micOn; });
+    setState(() => _micOn = !_micOn);
+  }
+
+  void _toggleVideo() {
+    _stream?.getVideoTracks().forEach((t) { t.enabled = !_videoOn; });
+    setState(() => _videoOn = !_videoOn);
   }
 
   @override
@@ -64,7 +72,9 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          if (!_cameraReady)
+          if (_cameraReady && _videoOn)
+            Positioned.fill(child: HtmlElementView(viewType: 'call-video'))
+          else if (!_cameraReady && _error == null)
             const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -74,8 +84,23 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
                   Text('جاري تشغيل الكاميرا...', style: TextStyle(color: Colors.white, fontSize: 16)),
                 ],
               ),
+            )
+          else
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.person, size: 80, color: Color(0xFF8696A0)),
+                  const SizedBox(height: 16),
+                  Text(widget.name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 14), textAlign: TextAlign.center),
+                  ],
+                ],
+              ),
             ),
-          // Controls
+          // Top bar
           Positioned(
             top: 40,
             left: 20,
@@ -89,6 +114,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
               onPressed: () => Navigator.pop(context),
             ),
           ),
+          // Bottom controls
           Positioned(
             bottom: 60,
             left: 0,
@@ -96,11 +122,11 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _controlButton(Icons.mic, _micOn, () => setState(() => _micOn = !_micOn)),
+                _controlButton(_micOn ? Icons.mic : Icons.mic_off, _micOn ? Colors.white : Colors.redAccent, _toggleMic),
                 const SizedBox(width: 24),
-                _controlButton(Icons.call_end, true, () => Navigator.pop(context), isRed: true),
+                _controlButton(Icons.call_end, Colors.red, () => Navigator.pop(context), bg: Colors.red),
                 const SizedBox(width: 24),
-                _controlButton(Icons.videocam, _videoOn, () => setState(() => _videoOn = !_videoOn)),
+                _controlButton(_videoOn ? Icons.videocam : Icons.videocam_off, _videoOn ? Colors.white : Colors.redAccent, _toggleVideo),
               ],
             ),
           ),
@@ -109,16 +135,16 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     );
   }
 
-  Widget _controlButton(IconData icon, bool active, VoidCallback onTap, {bool isRed = false}) {
+  Widget _controlButton(IconData icon, Color color, VoidCallback onTap, {Color? bg}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 56, height: 56,
         decoration: BoxDecoration(
-          color: isRed ? Colors.red : (active ? const Color(0xFF2A3942) : const Color(0xFF8696A0)),
+          color: bg ?? const Color(0xFF2A3942),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: isRed ? Colors.white : (active ? Colors.white : const Color(0xFF2A3942)), size: 24),
+        child: Icon(icon, color: color, size: 24),
       ),
     );
   }

@@ -115,7 +115,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       // Reload
       setState(() => _rawDoc = data);
+      // Reload profile in AuthProvider so home screen updates
       if (mounted) {
+        context.read<AuthProvider>().reloadProfile();
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ')));
         Navigator.pop(context);
       }

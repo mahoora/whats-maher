@@ -55,6 +55,13 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> reloadProfile() async {
+    final uid = _firebaseUser?.uid;
+    if (uid == null) return;
+    await _ensureUserDoc(uid, _firebaseUser?.email ?? '');
+    notifyListeners();
+  }
+
   Future<void> login(String email, String password) async {
     _isLoading = true;
     _error = null;
