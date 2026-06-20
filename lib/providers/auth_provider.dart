@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import '../services/firebase_service.dart';
+import '../services/phone_auth.dart';
 import '../models/user_model.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -126,17 +127,11 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     try {
       if (kIsWeb) {
-        final recaptcha = fb_auth.RecaptchaVerifier(
-          auth: FirebaseService.auth as dynamic,
-          container: 'recaptcha-container',
-          size: fb_auth.RecaptchaVerifierSize.normal,
-        );
-        _confirmationResult = await FirebaseService.auth.signInWithPhoneNumber(
-          phoneNumber,
-          recaptcha,
-        );
-        if (_confirmationResult != null) {
-          _verificationId = _confirmationResult!.verificationId;
+        final vid = await sendPhoneOtpJs(phoneNumber);
+        if (vid != null && vid.startsWith('خطأ')) {
+          _error = vid;
+        } else {
+          _verificationId = vid;
         }
       } else {
         await FirebaseService.auth.verifyPhoneNumber(
@@ -172,13 +167,14 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> verifyOtp(String code) async {
-    if (_verificationId == null && _confirmationResult == null) return;
+    if (_verificationId == null) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
-      if (_confirmationResult != null) {
-        await _confirmationResult!.confirm(code);
+      if (kIsWeb) {
+        final err = await verifyOtpJs(code);
+        if (err != null) _error = err;
       } else {
         final cred = fb_auth.PhoneAuthProvider.credential(
           verificationId: _verificationId!,
