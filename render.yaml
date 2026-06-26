@@ -2,7 +2,7 @@ services:
   - type: web
     name: whats-maher
     runtime: image
-    repo: https://github.com/mahoora/whatsapp-clone
+    repo: https://github.com/mahoora/whats-maher
     plan: free
     dockerfilePath: ./Dockerfile
     envVars:
